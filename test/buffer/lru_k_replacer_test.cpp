@@ -1,26 +1,38 @@
 #include <gtest/gtest.h>
+
 #include "onebase/buffer/lru_k_replacer.h"
 #include "onebase/common/exception.h"
 
 namespace onebase {
 
 TEST(LRUKReplacerTest, BasicEviction) {
-  // This test will throw NotImplementedException until student implements it
   LRUKReplacer replacer(7, 2);
 
-  // Test that methods throw NotImplementedException
-  frame_id_t frame;
-  EXPECT_THROW(replacer.Evict(&frame), NotImplementedException);
-  EXPECT_THROW(replacer.RecordAccess(1), NotImplementedException);
-  EXPECT_THROW(replacer.SetEvictable(1, true), NotImplementedException);
-  EXPECT_THROW(replacer.Remove(1), NotImplementedException);
-  EXPECT_THROW(replacer.Size(), NotImplementedException);
+  replacer.RecordAccess(1);
+  replacer.RecordAccess(1);
+  replacer.RecordAccess(2);
+
+  replacer.SetEvictable(1, true);
+  replacer.SetEvictable(2, true);
+  EXPECT_EQ(replacer.Size(), 2u);
+
+  frame_id_t frame = INVALID_FRAME_ID;
+  EXPECT_TRUE(replacer.Evict(&frame));
+  EXPECT_EQ(frame, 2);
+  EXPECT_TRUE(replacer.Evict(&frame));
+  EXPECT_EQ(frame, 1);
+  EXPECT_FALSE(replacer.Evict(&frame));
 }
 
-// Students: After implementing LRU-K, add more comprehensive tests here:
-// - Test with k=2, verify backward k-distance ordering
-// - Test eviction with mix of evictable/non-evictable frames
-// - Test that frames with <k accesses are evicted before frames with k accesses
-// - Test Remove() on non-evictable frame throws
+TEST(LRUKReplacerTest, RemoveRequiresEvictable) {
+  LRUKReplacer replacer(4, 2);
+
+  replacer.RecordAccess(0);
+  EXPECT_THROW(replacer.Remove(0), OneBaseException);
+
+  replacer.SetEvictable(0, true);
+  EXPECT_NO_THROW(replacer.Remove(0));
+  EXPECT_EQ(replacer.Size(), 0u);
+}
 
 }  // namespace onebase

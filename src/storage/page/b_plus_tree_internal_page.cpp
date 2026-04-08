@@ -35,64 +35,109 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index, const ValueType &valu
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const -> int {
-  // TODO(student): Find the index of the given value in the internal page
-  throw NotImplementedException("BPlusTreeInternalPage::ValueIndex");
+  for (int i = 0; i < GetSize(); i++) {
+    if (array_[i].second == value) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Lookup(const KeyType &key, const KeyComparator &comparator) const -> ValueType {
-  // TODO(student): Find the child page that should contain the given key
-  throw NotImplementedException("BPlusTreeInternalPage::Lookup");
+  for (int i = GetSize() - 1; i >= 1; i--) {
+    if (!comparator(key, array_[i].first)) {
+      return array_[i].second;
+    }
+  }
+  return array_[0].second;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::PopulateNewRoot(const ValueType &old_value, const KeyType &key,
                                                       const ValueType &new_value) {
-  // TODO(student): Create a new root with one key and two children
-  throw NotImplementedException("BPlusTreeInternalPage::PopulateNewRoot");
+  array_[0].second = old_value;
+  array_[1].first = key;
+  array_[1].second = new_value;
+  SetSize(2);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertNodeAfter(const ValueType &old_value, const KeyType &key,
                                                       const ValueType &new_value) -> int {
-  // TODO(student): Insert a new key-value pair after old_value
-  throw NotImplementedException("BPlusTreeInternalPage::InsertNodeAfter");
+  int idx = ValueIndex(old_value);
+  for (int i = GetSize(); i > idx + 1; i--) {
+    array_[i] = array_[i - 1];
+  }
+  array_[idx + 1].first = key;
+  array_[idx + 1].second = new_value;
+  IncreaseSize(1);
+  return GetSize();
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Remove(int index) {
-  // TODO(student): Remove the key-value pair at the given index
-  throw NotImplementedException("BPlusTreeInternalPage::Remove");
+  for (int i = index; i < GetSize() - 1; i++) {
+    array_[i] = array_[i + 1];
+  }
+  IncreaseSize(-1);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::RemoveAndReturnOnlyChild() -> ValueType {
-  // TODO(student): Remove all entries and return the only remaining child
-  throw NotImplementedException("BPlusTreeInternalPage::RemoveAndReturnOnlyChild");
+  ValueType child = array_[0].second;
+  SetSize(0);
+  return child;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveAllTo(BPlusTreeInternalPage *recipient, const KeyType &middle_key) {
-  // TODO(student): Move all entries to recipient during merge
-  throw NotImplementedException("BPlusTreeInternalPage::MoveAllTo");
+  int recipient_size = recipient->GetSize();
+  recipient->array_[recipient_size].first = middle_key;
+  recipient->array_[recipient_size].second = array_[0].second;
+  for (int i = 1; i < GetSize(); i++) {
+    recipient->array_[recipient_size + i] = array_[i];
+  }
+  recipient->IncreaseSize(GetSize());
+  SetSize(0);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveHalfTo(BPlusTreeInternalPage *recipient, const KeyType &middle_key) {
-  // TODO(student): Move the second half of entries to recipient during split
-  throw NotImplementedException("BPlusTreeInternalPage::MoveHalfTo");
+  int split = GetSize() / 2;
+  recipient->array_[0].first = middle_key;
+  recipient->array_[0].second = array_[split].second;
+  int j = 1;
+  for (int i = split + 1; i < GetSize(); i++, j++) {
+    recipient->array_[j] = array_[i];
+  }
+  recipient->SetSize(j);
+  SetSize(split);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeInternalPage *recipient, const KeyType &middle_key) {
-  // TODO(student): Move first entry to end of recipient (redistribute)
-  throw NotImplementedException("BPlusTreeInternalPage::MoveFirstToEndOf");
+  int recipient_size = recipient->GetSize();
+  recipient->array_[recipient_size].first = middle_key;
+  recipient->array_[recipient_size].second = array_[0].second;
+  recipient->IncreaseSize(1);
+  for (int i = 0; i < GetSize() - 1; i++) {
+    array_[i] = array_[i + 1];
+  }
+  IncreaseSize(-1);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeInternalPage *recipient, const KeyType &middle_key) {
-  // TODO(student): Move last entry to front of recipient (redistribute)
-  throw NotImplementedException("BPlusTreeInternalPage::MoveLastToFrontOf");
+  int recipient_size = recipient->GetSize();
+  for (int i = recipient_size; i > 0; i--) {
+    recipient->array_[i] = recipient->array_[i - 1];
+  }
+  int last = GetSize() - 1;
+  recipient->array_[0].second = array_[last].second;
+  recipient->array_[1].first = middle_key;
+  recipient->IncreaseSize(1);
+  IncreaseSize(-1);
 }
 
 }  // namespace onebase
