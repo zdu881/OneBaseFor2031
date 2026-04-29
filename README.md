@@ -1,99 +1,84 @@
 <div align="center">
   <img src="docs/assets/logo.jpg" alt="OneBase Logo" width="400">
   <h1>OneBase</h1>
-  <p><strong>A relational database management system built from scratch in modern C++</strong></p>
+  <p><strong>A teaching-oriented relational database system built in modern C++</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/C++-17-blue.svg" alt="C++17">
-    <img src="https://img.shields.io/badge/CMake-3.16+-green.svg" alt="CMake 3.16+">
+    <img src="https://img.shields.io/badge/C%2B%2B-17-blue.svg" alt="C++17">
+    <img src="https://img.shields.io/badge/CMake-3.16%2B-green.svg" alt="CMake 3.16+">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
   </p>
 </div>
 
 ---
 
-## Recent Updates
-**\[2026.4.15\]** We fixed a bug caused by a dependency cycle defined in onebase_storage. Thanks to Yilin LIU!
+## Overview
 
-## About
+OneBase is a compact relational database management system designed for teaching core DBMS internals. The project is organized as a sequence of labs that build up a working system from storage to execution and concurrency.
 
-OneBase is a lightweight relational database system designed for teaching the internals of a DBMS. It covers the core components that make up a real database engine — from buffer management and disk-based indexing to SQL query execution and transaction concurrency control.
+By the end of the project, students will work with:
 
-## Architecture
+- Buffer pool management and page replacement
+- Disk-backed B+ tree indexing
+- SQL binding, planning, and execution
+- Transaction locking and two-phase concurrency control
 
-```
-                          ┌───────────────────────┐
-                          │   SQL Parser          │
-                          └──────────┬────────────┘
-                                     │
-                          ┌──────────▼────────────┐
-                          │   Binder & Optimizer  │  SQL → Plan Tree
-                          └──────────┬────────────┘
-                                     │
-                          ┌──────────▼────────────┐
-                          │   Execution Engine    │  Volcano Iterator Model
-                          │   (11 Executors)      │ 
-                          └──────────┬────────────┘
-                                     │
-              ┌──────────────────────┼──────────────────────┐
-              │                      │                      │
-   ┌──────────▼───────────┐ ┌────────▼─────────┐ ┌──────────▼────────┐
-   │  B+ Tree Index       │ │  Table Heap      │ │  Lock Manager     │
-   │                      │ │  (Row Storage)   │ │  (2PL)            │
-   └──────────┬───────────┘ └────────┬─────────┘ └───────────────────┘
-              │                      │
-              └──────────┬───────────┘
-                         │
-              ┌──────────▼───────────┐
-              │  Buffer Pool Manager │
-              │  (LRU-K Replacement) │
-              └──────────┬───────────┘
-                         │
-              ┌──────────▼───────────┐
-              │  Disk Manager        │  Page I/O
-              └──────────────────────┘
-```
+## What You Will Build
+
+The system includes the following major components:
+
+- **Buffer Pool Manager** for caching pages in memory
+- **B+ Tree Index** for point lookup and range scan
+- **Table Heap** for tuple storage on disk
+- **Execution Engine** following the Volcano iterator model
+- **Lock Manager** for row-level two-phase locking
+- **Binder and Optimizer** for turning SQL into executable plans
+
+## System Architecture
+
+OneBase can be understood in four layers:
+
+- **Storage layer**: disk manager, page layouts, table heap, and B+ tree index
+- **Memory layer**: buffer pool manager, LRU-K replacement, and page guards
+- **Query layer**: binder, optimizer, execution engine, and executors
+- **Concurrency and metadata layer**: lock manager, transaction manager, catalog, and type system
+
+The main execution path is:
+
+1. SQL is parsed and bound into a logical representation.
+2. The optimizer produces an executable plan tree.
+3. The execution engine runs that plan using executors.
+4. Executors read and write tables or indexes through the buffer pool.
+5. The buffer pool fetches pages from disk and coordinates with storage structures.
 
 ```mermaid
-flowchart TB
-  A[OneBase DBMS] --> B[Common]
-  A --> C[Buffer]
-  A --> D[Storage]
-  A --> E[Execution]
-  A --> F[Concurrency]
-  A --> G[Catalog]
-  A --> H[Binder]
-  A --> I[Optimizer]
-  A --> J[Type]
-  A --> K[Client / Server / Tools]
+flowchart TD
+  SQL[SQL Input] --> Parser[SQL Parser]
+  Parser --> Binder[Binder]
+  Binder --> Optimizer[Optimizer]
+  Optimizer --> Engine[Execution Engine]
 
-  B --> B1[config / rid / utilities]
-  C --> C1[BufferPoolManager]
-  C --> C2[PageGuard]
-  C --> C3[LRU-K Replacer]
-  D --> D1[B+ Tree Index]
-  D --> D2[TableHeap]
-  D --> D3[Disk Manager]
-  D --> D4[Page Structures]
-  E --> E1[Executors]
-  E --> E2[Execution Engine]
-  F --> F1[Lock Manager]
-  F --> F2[Transaction Manager]
-  G --> G1[Schema / Table / Index Metadata]
-  H --> H1[SQL Binder]
-  I --> I1[Query Optimizer]
-  J --> J1[Value / Type System]
-  K --> K1[onebase_client]
-  K --> K2[onebase_server]
-  K --> K3[tools]
+  Engine --> Execs[Executors]
+  Engine --> Catalog[Catalog]
+  Engine --> Txn[Transaction Manager]
+  Txn --> Lock[Lock Manager]
 
-  C --> D
-  D --> E
-  G --> H
-  H --> I
-  F --> E
-  J --> G
-  J --> E
+  Execs --> TableHeap[Table Heap]
+  Execs --> BPT[B+ Tree Index]
+  Execs --> Types[Type System]
+
+  TableHeap --> BPM[Buffer Pool Manager]
+  BPT --> BPM
+  Catalog --> BPM
+
+  BPM --> Guards[Page Guards]
+  BPM --> LRUK[LRU-K Replacer]
+  BPM --> Pages[Page Structures]
+  BPM --> Disk[Disk Manager]
 ```
+
+## Lab Roadmap
+
+The course is organized into four labs. Each lab builds directly on earlier work.
 
 ```mermaid
 flowchart LR
@@ -129,97 +114,124 @@ flowchart LR
 
 ## Labs
 
-| Lab | Topic | Key Concepts | Components |
-|-----|-------|-------------|------------|
-| **1** | [Buffer Pool Manager](docs/lab1_buffer_pool_en.md) | Page caching, eviction policies, RAII | LRU-K Replacer, Buffer Pool Manager, Page Guard |
-| **2** | [B+ Tree Index](docs/lab2_b_plus_tree_en.md) | Disk-based indexing, tree balancing | Internal/Leaf Pages, Insert/Delete/Search, Iterator |
-| **3** | [Query Execution](docs/lab3_query_execution_en.md) | Volcano model, join algorithms | 11 Executors: SeqScan, IndexScan, Insert, Delete, Update, NLJ, HashJoin, Aggregation, Sort, Limit, Projection |
-| **4** | [Concurrency Control](docs/lab4_concurrency_control_en.md) | Two-phase locking, lock compatibility | LockShared, LockExclusive, LockUpgrade, Unlock |
+| Lab | Topic | Key Concepts | Main Components |
+|-----|-------|--------------|-----------------|
+| **1** | [Buffer Pool Manager](docs/lab1_buffer_pool_en.md) | Page caching, eviction, RAII guards | LRU-K Replacer, Buffer Pool Manager, Page Guard |
+| **2** | [B+ Tree Index](docs/lab2_b_plus_tree_en.md) | Disk-based indexing, split/merge, iterator | Internal Page, Leaf Page, B+ Tree, Iterator |
+| **3** | [Query Execution](docs/lab3_query_execution_en.md) | Volcano model, joins, aggregation, sorting | Executors, Binder, Optimizer, Catalog |
+| **4** | [Concurrency Control](docs/lab4_concurrency_control_en.md) | Two-phase locking, compatibility, upgrades | Lock Manager, Transaction Manager |
 
-Each lab comes with:
-- Detailed documentation with pseudocode and diagrams
-- Stub files with TODO markers for students to fill in
-- Automated graded tests (`test/eval/`)
+Each lab includes:
 
-## Getting Started
+- A written specification in English and Chinese
+- Student stub files with `TODO(student)` markers
+- Unit tests and evaluation tests
+
+## Quick Start
 
 ### Prerequisites
 
-- **Compiler**: GCC 9+ or Clang 10+ (C++17 support required)
-- **CMake**: 3.16 or higher
-- **Dependencies**: Google Test, fmt
+- **Compiler**: GCC 9+ or Clang 10+ with C++17 support
+- **CMake**: 3.16 or newer
+- **Libraries**: Google Test and `fmt`
 
-On Ubuntu/Debian:
+Example installation commands:
+
 ```bash
+# Ubuntu / Debian
 sudo apt install cmake g++ libgtest-dev libfmt-dev
-```
 
-On Arch Linux:
-```bash
+# Arch Linux
 sudo pacman -S cmake gcc gtest fmt
-```
 
-On macOS:
-```bash
+# macOS
 brew install cmake googletest fmt
 ```
 
 ### Build
 
 ```bash
-mkdir build && cd build
+mkdir -p build
+cd build
 cmake ..
 cmake --build . -j$(nproc)
 ```
 
+If `$(nproc)` is unavailable on your system, replace it with a fixed number such as `-j4`.
+
 ### Run Tests
 
-```bash
-# Run all tests
-ctest --test-dir build --output-on-failure
+Run the full test suite:
 
-# Run a specific lab's evaluation tests
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+Run evaluation tests for a specific lab:
+
+```bash
 ctest --test-dir build -R lab1_eval_test --output-on-failure
 ctest --test-dir build -R lab2_eval_test --output-on-failure
 ctest --test-dir build -R lab3_eval_test --output-on-failure
 ctest --test-dir build -R lab4_eval_test --output-on-failure
 ```
 
+Useful development targets:
+
+```bash
+ctest --test-dir build -R b_plus_tree --output-on-failure
+ctest --test-dir build -R executor_test --output-on-failure
+ctest --test-dir build -R lock_manager_test --output-on-failure
+```
+
 ### Interactive Shell
+
+You can launch the SQL shell after building:
 
 ```bash
 ./build/bin/onebase_shell
 ```
 
-## Project Structure
+## Recommended Workflow
 
-```
+For each lab, a reliable workflow is:
+
+1. Read the lab specification in `docs/`.
+2. Identify the files with `TODO(student)` markers.
+3. Implement incrementally and run the relevant tests frequently.
+4. Use `docs/common_mistakes.md` when debugging repeated failures.
+
+In general, it is better to get a minimal correct version working first, then handle edge cases and cleanup.
+
+## Repository Layout
+
+```text
 OneBase/
 ├── src/
 │   ├── include/onebase/       # Public headers
-│   ├── buffer/                # Lab 1: Buffer pool manager
-│   ├── storage/               # Lab 2: B+ tree, table heap, disk I/O
-│   ├── execution/             # Lab 3: Query executors & expressions
-│   ├── concurrency/           # Lab 4: Lock manager
-│   ├── binder/                # SQL → plan tree binding
+│   ├── buffer/                # Lab 1: buffer pool manager
+│   ├── storage/               # Lab 2: storage and indexing
+│   ├── execution/             # Lab 3: executors and expressions
+│   ├── concurrency/           # Lab 4: locking and transactions
+│   ├── binder/                # SQL binding
 │   ├── optimizer/             # Plan optimization
-│   ├── catalog/               # Table & index metadata
-│   ├── type/                  # SQL type system (INTEGER, VARCHAR, ...)
+│   ├── catalog/               # Table and index metadata
+│   ├── type/                  # SQL type system
 │   └── common/                # Shared utilities
 ├── test/
-│   ├── eval/                  # Graded evaluation tests (100 pts each)
 │   ├── buffer/                # Unit tests for Lab 1
 │   ├── storage/               # Unit tests for Lab 2
 │   ├── execution/             # Unit tests for Lab 3
-│   └── concurrency/           # Unit tests for Lab 4
-├── docs/                      # Lab specifications (English & Chinese)
-├── tools/                     # Shell and B+ tree printer
-└── third_party/               # libpg_query (SQL parser)
+│   ├── concurrency/           # Unit tests for Lab 4
+│   └── eval/                  # Evaluation tests
+├── docs/                      # Lab specifications and notes
+├── tools/                     # Shell and debugging tools
+└── third_party/               # External dependencies
 ```
 
 ## Documentation
 
-Lab documentation is available in both English and Chinese:
+Lab documents are available in both English and Chinese:
 
 | Lab | English | 中文 |
 |-----|---------|------|
@@ -228,11 +240,21 @@ Lab documentation is available in both English and Chinese:
 | 3 - Query Execution | [lab3_query_execution_en.md](docs/lab3_query_execution_en.md) | [lab3_query_execution_zh.md](docs/lab3_query_execution_zh.md) |
 | 4 - Concurrency Control | [lab4_concurrency_control_en.md](docs/lab4_concurrency_control_en.md) | [lab4_concurrency_control_zh.md](docs/lab4_concurrency_control_zh.md) |
 
+Additional notes:
+
+- [Common Mistakes](docs/common_mistakes.md)
+
 ## Submission
 
-The submission deadline for this project is **May, 12th**. 
-You should fork or clone this repository, complete Task 1-3 and upload the Github link to your submission on Canvas.
+Please observe the following submission policies:
 
-## Common Mistakes
+1. The deadline for this project is **May 12**. Beginning after May 12, late submissions will incur a score penalty of **20% per day**. The hard deadline is **May 15**. Submissions received after May 15 will not be accepted.
+2. At the time of submission, your GitHub repository must be set to **public**. You must submit the repository link to the designated assignment on Canvas.
+3. If you used a coding agent during the project, you may include a document named `AGENT_USAGE` in your repository describing how the agent was used for implementation and debugging. This document is optional and will **not** be considered as part of the project evaluation. It will be used only to help improve the course and the project design.
+4. All students are expected to uphold academic integrity. Plagiarism is strictly prohibited. Submissions exhibiting excessively high similarity may be subject to additional review.
 
-Check [here](docs/common_mistakes.md).
+## Notes
+
+- Build and test in a separate `build/` directory rather than inside `src/`.
+- When a test fails, read the first failing assertion carefully before changing code.
+- For Lab 2 and later, bugs in earlier labs often propagate upward. If a later lab behaves strangely, recheck earlier components first.
