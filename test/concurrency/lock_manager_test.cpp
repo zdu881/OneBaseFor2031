@@ -20,4 +20,10 @@ TEST_F(LockManagerLab4Test, TwoPLEnforce) { VerifyTwoPLEnforce(); }
 
 TEST_F(LockManagerLab4Test, MultiResource) { VerifyMultiResource(); }
 
+TEST_F(LockManagerLab4Test, WriterFairnessBlocksLaterReaders) { VerifyWriterFairnessBlocksLaterReaders(); }
+
+TEST_F(LockManagerLab4Test, ExclusiveRequestWhileSharedFailsWithoutDeadlock) {
+  VerifyExclusiveRequestWhileSharedFailsWithoutDeadlock();
+}
+
 }  // namespace onebase

@@ -21,4 +21,12 @@ GRADED_TEST_F(LockManagerLab4Test, TwoPLEnforce, 15) { VerifyTwoPLEnforce(); }
 
 GRADED_TEST_F(LockManagerLab4Test, MultiResource, 15) { VerifyMultiResource(); }
 
+GRADED_TEST_F(LockManagerLab4Test, WriterFairnessBlocksLaterReaders, 10) {
+  VerifyWriterFairnessBlocksLaterReaders();
+}
+
+GRADED_TEST_F(LockManagerLab4Test, ExclusiveRequestWhileSharedFailsWithoutDeadlock, 10) {
+  VerifyExclusiveRequestWhileSharedFailsWithoutDeadlock();
+}
+
 }  // namespace onebase

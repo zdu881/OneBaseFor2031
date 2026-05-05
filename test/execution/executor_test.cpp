@@ -17,6 +17,8 @@ TEST_F(SqlExecutorLab3Test, AggregationAndGroupingEdgeCases) { VerifyAggregation
 
 TEST_F(SqlExecutorLab3Test, SortLimitAndZeroLimit) { VerifySortLimitAndZeroLimit(); }
 
+TEST_F(SqlExecutorLab3Test, AggregationNullAndEmptySemantics) { VerifyAggregationNullAndEmptySemantics(); }
+
 TEST_F(LargeSqlExecutorLab3Test, LargeDataRobustness) { VerifyLargeDataRobustness(); }
 
 TEST_F(LargeSqlExecutorLab3Test, IndexedLookupsMustNotBeSlow) { VerifyIndexedLookupsMustNotBeSlow(); }

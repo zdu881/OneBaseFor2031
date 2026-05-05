@@ -12,6 +12,10 @@
 #include "../eval/sql_test_client.h"
 #include "onebase/catalog/column.h"
 #include "onebase/catalog/schema.h"
+#include "onebase/execution/expressions/column_value_expression.h"
+#include "onebase/execution/expressions/comparison_expression.h"
+#include "onebase/execution/expressions/constant_value_expression.h"
+#include "onebase/execution/plans/plan_nodes.h"
 #include "onebase/type/type_id.h"
 #include "onebase/type/value.h"
 
@@ -165,6 +169,41 @@ class SqlExecutorLab3Test : public ::testing::Test {
 
     auto no_match = client_->ExecuteQuery("SELECT * FROM base WHERE id < 0 ORDER BY val DESC");
     EXPECT_EQ(no_match.GetRowCount(), 0u);
+  }
+
+  void VerifyAggregationNullAndEmptySemantics() {
+    auto *table = client_->CreateTable("nullable", Schema({Column("v", TypeId::INTEGER)}));
+    ASSERT_NE(table, nullptr);
+    client_->SeedTable("nullable", {{Value(TypeId::INTEGER, 1)}, {Value(TypeId::INTEGER)},
+                                     {Value(TypeId::INTEGER, 3)}});
+
+    auto scan = std::make_shared<SeqScanPlanNode>(table->schema_, table->oid_, nullptr);
+    auto col_v = std::make_shared<ColumnValueExpression>(0, 0, TypeId::INTEGER);
+    auto agg_schema = Schema({Column("count_v", TypeId::INTEGER), Column("sum_v", TypeId::INTEGER),
+                              Column("min_v", TypeId::INTEGER), Column("max_v", TypeId::INTEGER)});
+    auto agg = std::make_shared<AggregationPlanNode>(
+        agg_schema, scan, std::vector<AbstractExpressionRef>{},
+        std::vector<AbstractExpressionRef>{col_v, col_v, col_v, col_v},
+        std::vector<AggregationType>{AggregationType::CountAggregate, AggregationType::SumAggregate,
+                                     AggregationType::MinAggregate, AggregationType::MaxAggregate});
+
+    auto result = client_->ExecutePlan(agg);
+    ASSERT_EQ(result.GetRowCount(), 1u);
+    EXPECT_EQ(result.GetRow(0), (std::vector<std::string>{"2", "4", "1", "3"}));
+
+    auto false_predicate = std::make_shared<ComparisonExpression>(
+        std::make_shared<ConstantValueExpression>(Value(TypeId::INTEGER, 1)),
+        std::make_shared<ConstantValueExpression>(Value(TypeId::INTEGER, 0)), ComparisonType::Equal);
+    auto empty_scan = std::make_shared<SeqScanPlanNode>(table->schema_, table->oid_, false_predicate);
+    auto empty_agg = std::make_shared<AggregationPlanNode>(
+        agg_schema, empty_scan, std::vector<AbstractExpressionRef>{},
+        std::vector<AbstractExpressionRef>{col_v, col_v, col_v, col_v},
+        std::vector<AggregationType>{AggregationType::CountAggregate, AggregationType::SumAggregate,
+                                     AggregationType::MinAggregate, AggregationType::MaxAggregate});
+
+    auto empty_result = client_->ExecutePlan(empty_agg);
+    ASSERT_EQ(empty_result.GetRowCount(), 1u);
+    EXPECT_EQ(empty_result.GetRow(0), (std::vector<std::string>{"0", "NULL", "NULL", "NULL"}));
   }
 
   std::unique_ptr<SqlTestClient> client_;

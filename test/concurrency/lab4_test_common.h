@@ -185,6 +185,62 @@ class LockManagerLab4Test : public ::testing::Test {
     lm.Unlock(&txn2, rid1);
     lm.Unlock(&txn3, rid2);
   }
+
+  void VerifyWriterFairnessBlocksLaterReaders() {
+    LockManager lm;
+    Transaction reader0(0), writer(1), reader1(2);
+    RID rid(0, 0);
+
+    ASSERT_TRUE(lm.LockShared(&reader0, rid));
+
+    std::promise<void> writer_started;
+    std::promise<bool> writer_result;
+    std::thread writer_thread([&]() {
+      writer_started.set_value();
+      writer_result.set_value(lm.LockExclusive(&writer, rid));
+    });
+    writer_started.get_future().wait();
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    ASSERT_FALSE(writer.IsExclusiveLocked(rid));
+
+    std::promise<void> reader_started;
+    std::promise<bool> reader_result;
+    std::thread reader_thread([&]() {
+      reader_started.set_value();
+      reader_result.set_value(lm.LockShared(&reader1, rid));
+    });
+    reader_started.get_future().wait();
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_FALSE(reader1.IsSharedLocked(rid));
+
+    EXPECT_TRUE(lm.Unlock(&reader0, rid));
+    EXPECT_TRUE(writer_result.get_future().get());
+    EXPECT_TRUE(writer.IsExclusiveLocked(rid));
+    EXPECT_FALSE(reader1.IsSharedLocked(rid));
+
+    EXPECT_TRUE(lm.Unlock(&writer, rid));
+    EXPECT_TRUE(reader_result.get_future().get());
+    EXPECT_TRUE(reader1.IsSharedLocked(rid));
+
+    writer_thread.join();
+    reader_thread.join();
+    EXPECT_TRUE(lm.Unlock(&reader1, rid));
+  }
+
+  void VerifyExclusiveRequestWhileSharedFailsWithoutDeadlock() {
+    LockManager lm;
+    Transaction txn(0);
+    RID rid(0, 0);
+
+    ASSERT_TRUE(lm.LockShared(&txn, rid));
+
+    auto result = std::async(std::launch::async, [&]() { return lm.LockExclusive(&txn, rid); });
+    ASSERT_EQ(result.wait_for(std::chrono::milliseconds(200)), std::future_status::ready);
+    EXPECT_FALSE(result.get());
+    EXPECT_EQ(txn.GetState(), TransactionState::ABORTED);
+    EXPECT_FALSE(txn.IsSharedLocked(rid));
+    EXPECT_FALSE(txn.IsExclusiveLocked(rid));
+  }
 };
 
 }  // namespace onebase::test

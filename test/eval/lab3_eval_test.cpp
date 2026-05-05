@@ -24,6 +24,10 @@ GRADED_TEST_F(SqlExecutorLab3Test, AggregationAndGroupingEdgeCases, 15) {
 
 GRADED_TEST_F(SqlExecutorLab3Test, SortLimitAndZeroLimit, 15) { VerifySortLimitAndZeroLimit(); }
 
+GRADED_TEST_F(SqlExecutorLab3Test, AggregationNullAndEmptySemantics, 10) {
+  VerifyAggregationNullAndEmptySemantics();
+}
+
 GRADED_TEST_F(LargeSqlExecutorLab3Test, LargeDataRobustness, 10) { VerifyLargeDataRobustness(); }
 
 GRADED_TEST_F(LargeSqlExecutorLab3Test, IndexedLookupsMustNotBeSlow, 10) {
