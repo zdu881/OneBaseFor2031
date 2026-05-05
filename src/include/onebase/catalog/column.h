@@ -35,9 +35,9 @@ class Column {
  private:
   static auto GetFixedLengthFor(TypeId type) -> uint32_t {
     switch (type) {
-      case TypeId::BOOLEAN: return 1;
-      case TypeId::INTEGER: return 4;
-      case TypeId::FLOAT: return 8;
+      case TypeId::BOOLEAN: return 1 + sizeof(bool);
+      case TypeId::INTEGER: return 1 + sizeof(int32_t);
+      case TypeId::FLOAT: return 1 + sizeof(float);
       default: return 0;
     }
   }

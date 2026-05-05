@@ -27,9 +27,9 @@ auto LockManager::LockShared(Transaction *txn, const RID &rid) -> bool {
     }
     for (const auto &req : queue.request_queue_) {
       if (&req == &(*iter)) {
-        continue;
+        break;
       }
-      if (req.granted_ && req.lock_mode_ == LockMode::EXCLUSIVE) {
+      if (req.lock_mode_ == LockMode::EXCLUSIVE) {
         return false;
       }
     }
@@ -60,6 +60,25 @@ auto LockManager::LockExclusive(Transaction *txn, const RID &rid) -> bool {
   if (txn->IsExclusiveLocked(rid)) {
     return true;
   }
+  if (txn->IsSharedLocked(rid)) {
+    auto table_iter = lock_table_.find(rid);
+    if (table_iter != lock_table_.end()) {
+      auto &queue = table_iter->second;
+      for (auto iter = queue.request_queue_.begin(); iter != queue.request_queue_.end(); ++iter) {
+        if (iter->txn_id_ == txn->GetTransactionId()) {
+          queue.request_queue_.erase(iter);
+          break;
+        }
+      }
+      queue.cv_.notify_all();
+    } else {
+      txn->GetSharedLockSet()->erase(rid);
+    }
+    txn->GetSharedLockSet()->erase(rid);
+    txn->GetExclusiveLockSet()->erase(rid);
+    txn->SetState(TransactionState::ABORTED);
+    return false;
+  }
 
   auto &queue = lock_table_[rid];
   queue.request_queue_.emplace_back(txn->GetTransactionId(), LockMode::EXCLUSIVE);
@@ -71,9 +90,12 @@ auto LockManager::LockExclusive(Transaction *txn, const RID &rid) -> bool {
     }
     for (const auto &req : queue.request_queue_) {
       if (&req == &(*iter)) {
-        continue;
+        break;
       }
-      if (req.granted_) {
+      return false;
+    }
+    for (const auto &req : queue.request_queue_) {
+      if (&req != &(*iter) && req.granted_) {
         return false;
       }
     }

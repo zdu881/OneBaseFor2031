@@ -216,6 +216,8 @@ auto Value::Not() const -> Value {
 // --- Serialization ---
 
 void Value::SerializeTo(char *storage) const {
+    storage[0] = is_null_ ? 1 : 0;
+    storage++;
     switch (type_id_) {
         case TypeId::BOOLEAN:
             *reinterpret_cast<bool *>(storage) = boolean_;
@@ -238,6 +240,10 @@ void Value::SerializeTo(char *storage) const {
 }
 
 auto Value::DeserializeFrom(const char *storage, TypeId type) -> Value {
+    if (storage[0] != 0) {
+        return Value(type);
+    }
+    storage++;
     switch (type) {
         case TypeId::BOOLEAN:
             return Value(type, *reinterpret_cast<const bool *>(storage));
@@ -258,13 +264,13 @@ auto Value::DeserializeFrom(const char *storage, TypeId type) -> Value {
 auto Value::GetSerializedSize() const -> uint32_t {
     switch (type_id_) {
         case TypeId::BOOLEAN:
-            return sizeof(bool);
+            return 1 + sizeof(bool);
         case TypeId::INTEGER:
-            return sizeof(int32_t);
+            return 1 + sizeof(int32_t);
         case TypeId::FLOAT:
-            return sizeof(float);
+            return 1 + sizeof(float);
         case TypeId::VARCHAR:
-            return sizeof(uint32_t) + static_cast<uint32_t>(varchar_.size());
+            return 1 + sizeof(uint32_t) + static_cast<uint32_t>(varchar_.size());
         default:
             UNREACHABLE("Unsupported type for GetSerializedSize");
     }

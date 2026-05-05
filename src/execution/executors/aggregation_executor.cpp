@@ -57,9 +57,9 @@ void AggregationExecutor::Init() {
         switch (agg_type) {
           case AggregationType::CountStarAggregate:
           case AggregationType::CountAggregate:
-          case AggregationType::SumAggregate:
             state.agg_vals.emplace_back(TypeId::INTEGER, 0);
             break;
+          case AggregationType::SumAggregate:
           case AggregationType::MinAggregate:
           case AggregationType::MaxAggregate:
             state.agg_vals.emplace_back(TypeId::INTEGER);
@@ -80,12 +80,20 @@ void AggregationExecutor::Init() {
       }
 
       auto input_val = plan_->GetAggregates()[i]->Evaluate(&tuple, &schema);
+      if (input_val.IsNull()) {
+        continue;
+      }
       switch (agg_type) {
         case AggregationType::CountAggregate:
           state.agg_vals[i] = state.agg_vals[i].Add(Value(TypeId::INTEGER, 1));
           break;
         case AggregationType::SumAggregate:
-          state.agg_vals[i] = state.agg_vals[i].Add(input_val);
+          if (!state.initialized[i]) {
+            state.agg_vals[i] = input_val;
+          } else {
+            state.agg_vals[i] = state.agg_vals[i].Add(input_val);
+          }
+          state.initialized[i] = true;
           break;
         case AggregationType::MinAggregate:
           if (!state.initialized[i] || input_val.CompareLessThan(state.agg_vals[i]).GetAsBoolean()) {
@@ -111,10 +119,12 @@ void AggregationExecutor::Init() {
       switch (agg_type) {
         case AggregationType::CountStarAggregate:
         case AggregationType::CountAggregate:
+          values.emplace_back(TypeId::INTEGER, 0);
+          break;
         case AggregationType::SumAggregate:
         case AggregationType::MinAggregate:
         case AggregationType::MaxAggregate:
-          values.emplace_back(TypeId::INTEGER, 0);
+          values.emplace_back(TypeId::INTEGER);
           break;
       }
     }

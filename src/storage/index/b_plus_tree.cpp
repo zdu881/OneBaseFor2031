@@ -75,6 +75,11 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
 
   page_id_t new_leaf_id;
   Page *new_leaf_page = bpm_->NewPage(&new_leaf_id);
+  if (new_leaf_page == nullptr) {
+    leaf->RemoveAndDeleteRecord(key, comparator_);
+    bpm_->UnpinPage(leaf_page->GetPageId(), true);
+    return false;
+  }
   auto *new_leaf = reinterpret_cast<LeafPage *>(new_leaf_page->GetData());
   new_leaf->Init(leaf_max_size_);
   new_leaf->SetParentPageId(leaf->GetParentPageId());
@@ -82,7 +87,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
   leaf->SetNextPageId(new_leaf_id);
   KeyType middle_key = new_leaf->KeyAt(0);
 
-  std::function<void(Page *, const KeyType &, Page *)> insert_into_parent;
+  std::function<bool(Page *, const KeyType &, Page *)> insert_into_parent;
   insert_into_parent = [&](Page *old_page, const KeyType &mid_key, Page *new_page) {
     auto *old_tree = reinterpret_cast<BPlusTreePage *>(old_page->GetData());
     auto *new_tree = reinterpret_cast<BPlusTreePage *>(new_page->GetData());
@@ -90,6 +95,9 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
     if (old_tree->IsRootPage()) {
       page_id_t new_root_id;
       Page *new_root_page = bpm_->NewPage(&new_root_id);
+      if (new_root_page == nullptr) {
+        return false;
+      }
       auto *new_root = reinterpret_cast<InternalPage *>(new_root_page->GetData());
       new_root->Init(internal_max_size_);
       new_root->SetParentPageId(INVALID_PAGE_ID);
@@ -102,11 +110,14 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
       bpm_->UnpinPage(old_page->GetPageId(), true);
       bpm_->UnpinPage(new_page->GetPageId(), true);
       bpm_->UnpinPage(new_root_id, true);
-      return;
+      return true;
     }
 
     page_id_t parent_id = old_tree->GetParentPageId();
     Page *parent_page = bpm_->FetchPage(parent_id);
+    if (parent_page == nullptr) {
+      return false;
+    }
     auto *parent = reinterpret_cast<InternalPage *>(parent_page->GetData());
 
     new_tree->SetParentPageId(parent_id);
@@ -117,7 +128,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
 
     if (parent->GetSize() <= parent->GetMaxSize()) {
       bpm_->UnpinPage(parent_id, true);
-      return;
+      return true;
     }
 
     int split_index = parent->GetSize() / 2;
@@ -125,6 +136,10 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
 
     page_id_t new_internal_id;
     Page *new_internal_page = bpm_->NewPage(&new_internal_id);
+    if (new_internal_page == nullptr) {
+      bpm_->UnpinPage(parent_id, true);
+      return true;
+    }
     auto *new_internal = reinterpret_cast<InternalPage *>(new_internal_page->GetData());
     new_internal->Init(internal_max_size_);
     new_internal->SetParentPageId(parent->GetParentPageId());
@@ -138,11 +153,19 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
       bpm_->UnpinPage(child_id, true);
     }
 
-    insert_into_parent(parent_page, parent_mid_key, new_internal_page);
+    return insert_into_parent(parent_page, parent_mid_key, new_internal_page);
   };
 
-  insert_into_parent(leaf_page, middle_key, new_leaf_page);
-  return true;
+  if (insert_into_parent(leaf_page, middle_key, new_leaf_page)) {
+    return true;
+  }
+
+  new_leaf->MoveAllTo(leaf);
+  leaf->RemoveAndDeleteRecord(key, comparator_);
+  bpm_->UnpinPage(leaf_page->GetPageId(), true);
+  bpm_->UnpinPage(new_leaf_id, true);
+  bpm_->DeletePage(new_leaf_id);
+  return false;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
