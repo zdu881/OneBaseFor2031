@@ -24,6 +24,10 @@ class BufferPoolManager {
   void FlushAllPages();
 
  private:
+  auto GetAvailableFrame(frame_id_t *frame_id) -> bool;
+  void ResetFrame(Page *page);
+  void PrepareFrame(frame_id_t frame_id);
+
   size_t pool_size_;
   DiskManager *disk_manager_;
   std::unique_ptr<LRUKReplacer> replacer_;
