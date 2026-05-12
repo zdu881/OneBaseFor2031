@@ -34,6 +34,7 @@ target_include_directories(executor_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Concurrency tests (Lab 4)
 onebase_add_test(lock_manager_test concurrency/lock_manager_test.cpp)
+onebase_add_test(transaction_manager_test concurrency/transaction_manager_test.cpp)
 
 # ──────────────────────────────────────────────
 # Evaluation (graded) tests — custom main()
