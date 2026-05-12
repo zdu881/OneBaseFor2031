@@ -92,6 +92,16 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
     auto *old_tree = reinterpret_cast<BPlusTreePage *>(old_page->GetData());
     auto *new_tree = reinterpret_cast<BPlusTreePage *>(new_page->GetData());
 
+    auto reset_children_parent = [&](InternalPage *node, page_id_t parent_id) {
+      for (int i = 0; i < node->GetSize(); i++) {
+        page_id_t child_id = node->ValueAt(i);
+        Page *child_page = bpm_->FetchPage(child_id);
+        auto *child = reinterpret_cast<BPlusTreePage *>(child_page->GetData());
+        child->SetParentPageId(parent_id);
+        bpm_->UnpinPage(child_id, true);
+      }
+    };
+
     if (old_tree->IsRootPage()) {
       page_id_t new_root_id;
       Page *new_root_page = bpm_->NewPage(&new_root_id);
@@ -123,10 +133,9 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
     new_tree->SetParentPageId(parent_id);
     parent->InsertNodeAfter(old_page->GetPageId(), mid_key, new_page->GetPageId());
 
-    bpm_->UnpinPage(old_page->GetPageId(), true);
-    bpm_->UnpinPage(new_page->GetPageId(), true);
-
     if (parent->GetSize() <= parent->GetMaxSize()) {
+      bpm_->UnpinPage(old_page->GetPageId(), true);
+      bpm_->UnpinPage(new_page->GetPageId(), true);
       bpm_->UnpinPage(parent_id, true);
       return true;
     }
@@ -137,23 +146,36 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
     page_id_t new_internal_id;
     Page *new_internal_page = bpm_->NewPage(&new_internal_id);
     if (new_internal_page == nullptr) {
+      int inserted_index = parent->ValueIndex(new_page->GetPageId());
+      if (inserted_index >= 0) {
+        parent->Remove(inserted_index);
+      }
       bpm_->UnpinPage(parent_id, true);
-      return true;
+      return false;
     }
     auto *new_internal = reinterpret_cast<InternalPage *>(new_internal_page->GetData());
     new_internal->Init(internal_max_size_);
     new_internal->SetParentPageId(parent->GetParentPageId());
     parent->MoveHalfTo(new_internal, parent_mid_key);
 
-    for (int i = 0; i < new_internal->GetSize(); i++) {
-      page_id_t child_id = new_internal->ValueAt(i);
-      Page *child_page = bpm_->FetchPage(child_id);
-      auto *child = reinterpret_cast<BPlusTreePage *>(child_page->GetData());
-      child->SetParentPageId(new_internal_id);
-      bpm_->UnpinPage(child_id, true);
+    reset_children_parent(new_internal, new_internal_id);
+
+    if (insert_into_parent(parent_page, parent_mid_key, new_internal_page)) {
+      bpm_->UnpinPage(old_page->GetPageId(), true);
+      bpm_->UnpinPage(new_page->GetPageId(), true);
+      return true;
     }
 
-    return insert_into_parent(parent_page, parent_mid_key, new_internal_page);
+    new_internal->MoveAllTo(parent, parent_mid_key);
+    int inserted_index = parent->ValueIndex(new_page->GetPageId());
+    if (inserted_index >= 0) {
+      parent->Remove(inserted_index);
+    }
+    reset_children_parent(parent, parent_id);
+    bpm_->UnpinPage(parent_id, true);
+    bpm_->UnpinPage(new_internal_id, true);
+    bpm_->DeletePage(new_internal_id);
+    return false;
   };
 
   if (insert_into_parent(leaf_page, middle_key, new_leaf_page)) {

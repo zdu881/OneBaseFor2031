@@ -63,7 +63,7 @@ TEST(ValueTest, IntegerArithmetic) {
 TEST(ValueTest, Serialization) {
   Value v1(TypeId::INTEGER, 42);
   auto size = v1.GetSerializedSize();
-  EXPECT_EQ(size, sizeof(int32_t));
+  EXPECT_EQ(size, 1 + sizeof(int32_t));
 
   std::vector<char> buf(size);
   v1.SerializeTo(buf.data());

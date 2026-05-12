@@ -147,6 +147,26 @@ class BPlusTreeLab2Test : public ::testing::Test {
     EXPECT_EQ(values[0], MakeRid(1));
   }
 
+  void VerifyInternalSplitFailsCleanlyWhenBufferIsFull() {
+    tree_.reset();
+    bpm_.reset();
+    bpm_ = std::make_unique<BufferPoolManager>(3, disk_manager_.get());
+    tree_ = std::make_unique<TreeType>("small_internal_pool_tree", bpm_.get(), std::less<int>{}, 2, 2);
+
+    EXPECT_TRUE(tree_->Insert(1, MakeRid(1)));
+    EXPECT_TRUE(tree_->Insert(2, MakeRid(2)));
+    EXPECT_TRUE(tree_->Insert(3, MakeRid(3)));
+    EXPECT_FALSE(tree_->Insert(4, MakeRid(4)));
+
+    for (int key : {1, 2, 3}) {
+      auto values = Lookup(key);
+      ASSERT_EQ(values.size(), 1u);
+      EXPECT_EQ(values[0], MakeRid(key));
+    }
+    EXPECT_TRUE(Lookup(4).empty());
+    EXPECT_EQ(CollectKeysFrom(tree_->Begin()), (std::vector<int>{1, 2, 3}));
+  }
+
   std::string db_name_;
   std::unique_ptr<DiskManager> disk_manager_;
   std::unique_ptr<BufferPoolManager> bpm_;

@@ -12,4 +12,8 @@ TEST_F(BPlusTreeTest, BeginFromKeyAndSparseLookupsWork) { VerifyBeginFromKeyAndS
 
 TEST_F(BPlusTreeTest, InsertFailsCleanlyWhenBufferIsFull) { VerifyInsertFailsCleanlyWhenBufferIsFull(); }
 
+TEST_F(BPlusTreeTest, InternalSplitFailsCleanlyWhenBufferIsFull) {
+  VerifyInternalSplitFailsCleanlyWhenBufferIsFull();
+}
+
 }  // namespace onebase
