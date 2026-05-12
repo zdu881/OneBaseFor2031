@@ -13,6 +13,13 @@ IndexInfo::IndexInfo(Schema key_schema, std::string name, std::string table_name
 IndexInfo::~IndexInfo() = default;
 
 auto IndexInfo::LookupInteger(int32_t key) const -> const std::vector<RID> * {
+  if (int_index_ == nullptr) {
+    return nullptr;
+  }
+  std::vector<RID> index_result;
+  if (!int_index_->GetValue(key, &index_result)) {
+    return nullptr;
+  }
   auto it = int_rid_map_.find(key);
   if (it == int_rid_map_.end()) {
     return nullptr;

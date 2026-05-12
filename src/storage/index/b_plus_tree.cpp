@@ -1,5 +1,6 @@
 #include "onebase/storage/index/b_plus_tree.h"
 #include "onebase/storage/index/b_plus_tree_iterator.h"
+#include <algorithm>
 #include <functional>
 #include "onebase/common/exception.h"
 
@@ -13,14 +14,14 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, BufferPoolManager *bpm, const KeyCom
     : Index(std::move(name)), bpm_(bpm), comparator_(comparator),
       leaf_max_size_(leaf_max_size), internal_max_size_(internal_max_size) {
   if (leaf_max_size_ == 0) {
-    leaf_max_size_ = static_cast<int>(
+    leaf_max_size_ = std::max(2, static_cast<int>(
         (ONEBASE_PAGE_SIZE - sizeof(BPlusTreePage) - sizeof(page_id_t)) /
-        (sizeof(KeyType) + sizeof(ValueType)));
+        (sizeof(KeyType) + sizeof(ValueType))) - 1);
   }
   if (internal_max_size_ == 0) {
-    internal_max_size_ = static_cast<int>(
+    internal_max_size_ = std::max(2, static_cast<int>(
         (ONEBASE_PAGE_SIZE - sizeof(BPlusTreePage)) /
-        (sizeof(KeyType) + sizeof(page_id_t)));
+        (sizeof(KeyType) + sizeof(page_id_t))) - 1);
   }
 }
 

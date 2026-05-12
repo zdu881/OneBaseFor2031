@@ -66,6 +66,9 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertNodeAfter(const ValueType &old_value, const KeyType &key,
                                                       const ValueType &new_value) -> int {
   int idx = ValueIndex(old_value);
+  if (idx < 0) {
+    throw OneBaseException("old child not found in internal page", ExceptionType::OUT_OF_RANGE);
+  }
   for (int i = GetSize(); i > idx + 1; i--) {
     array_[i] = array_[i - 1];
   }

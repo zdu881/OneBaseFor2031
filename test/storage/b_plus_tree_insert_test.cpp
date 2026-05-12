@@ -10,6 +10,12 @@ TEST_F(BPlusTreeTest, InsertionsSplitAndIterationIsOrdered) { VerifyInsertionsSp
 
 TEST_F(BPlusTreeTest, BeginFromKeyAndSparseLookupsWork) { VerifyBeginFromKeyAndSparseLookupsWork(); }
 
+TEST_F(BPlusTreeTest, NonRightmostLeafInsertUpdatesParentSeparators) {
+  VerifyNonRightmostLeafInsertUpdatesParentSeparators();
+}
+
+TEST_F(BPlusTreeTest, LargeUniqueLookupCompletes) { VerifyLargeUniqueLookupCompletes(); }
+
 TEST_F(BPlusTreeTest, InsertFailsCleanlyWhenBufferIsFull) { VerifyInsertFailsCleanlyWhenBufferIsFull(); }
 
 TEST_F(BPlusTreeTest, InternalSplitFailsCleanlyWhenBufferIsFull) {

@@ -107,6 +107,37 @@ class BPlusTreeLab2Test : public ::testing::Test {
     EXPECT_EQ(CollectKeysFrom(tree_->Begin(99)), std::vector<int>{});
   }
 
+  void VerifyNonRightmostLeafInsertUpdatesParentSeparators() {
+    InsertKeys({10, 20, 30, 40, 50});
+
+    EXPECT_FALSE(RootIsLeaf());
+    EXPECT_TRUE(tree_->Insert(5, MakeRid(5)));
+
+    EXPECT_EQ(CollectKeysFrom(tree_->Begin()), (std::vector<int>{5, 10, 20, 30, 40, 50}));
+    EXPECT_EQ(CollectKeysFrom(tree_->Begin(5)), (std::vector<int>{5, 10, 20, 30, 40, 50}));
+    EXPECT_EQ(CollectKeysFrom(tree_->Begin(10)), (std::vector<int>{10, 20, 30, 40, 50}));
+
+    auto values = Lookup(5);
+    ASSERT_EQ(values.size(), 1u);
+    EXPECT_EQ(values[0], MakeRid(5));
+  }
+
+  void VerifyLargeUniqueLookupCompletes() {
+    tree_.reset();
+    bpm_.reset();
+    bpm_ = std::make_unique<BufferPoolManager>(256, disk_manager_.get());
+    tree_ = std::make_unique<TreeType>("large_unique_tree", bpm_.get(), std::less<int>{});
+
+    for (int key = 0; key < 997; ++key) {
+      EXPECT_TRUE(tree_->Insert(key, MakeRid(key))) << "failed to insert key " << key;
+    }
+
+    auto values = Lookup(123);
+    ASSERT_EQ(values.size(), 1u);
+    EXPECT_EQ(values[0], MakeRid(123));
+    EXPECT_EQ(CollectKeysFrom(tree_->Begin(995)), (std::vector<int>{995, 996}));
+  }
+
   void VerifyDeleteMaintainsCorrectnessAndCanEmptyTree() {
     InsertKeys({0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
 
