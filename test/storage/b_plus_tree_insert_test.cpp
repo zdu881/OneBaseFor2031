@@ -16,6 +16,8 @@ TEST_F(BPlusTreeTest, NonRightmostLeafInsertUpdatesParentSeparators) {
 
 TEST_F(BPlusTreeTest, LargeUniqueLookupCompletes) { VerifyLargeUniqueLookupCompletes(); }
 
+TEST_F(BPlusTreeTest, OversizedExplicitMaxSizesAreClamped) { VerifyOversizedExplicitMaxSizesAreClamped(); }
+
 TEST_F(BPlusTreeTest, InsertFailsCleanlyWhenBufferIsFull) { VerifyInsertFailsCleanlyWhenBufferIsFull(); }
 
 TEST_F(BPlusTreeTest, InternalSplitFailsCleanlyWhenBufferIsFull) {

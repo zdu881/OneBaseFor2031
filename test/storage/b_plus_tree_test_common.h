@@ -138,6 +138,22 @@ class BPlusTreeLab2Test : public ::testing::Test {
     EXPECT_EQ(CollectKeysFrom(tree_->Begin(995)), (std::vector<int>{995, 996}));
   }
 
+  void VerifyOversizedExplicitMaxSizesAreClamped() {
+    tree_.reset();
+    bpm_.reset();
+    bpm_ = std::make_unique<BufferPoolManager>(256, disk_manager_.get());
+    tree_ = std::make_unique<TreeType>("clamped_tree", bpm_.get(), std::less<int>{}, 100000, 100000);
+
+    for (int key = 0; key < 997; ++key) {
+      EXPECT_TRUE(tree_->Insert(key, MakeRid(key))) << "failed to insert key " << key;
+    }
+
+    auto values = Lookup(123);
+    ASSERT_EQ(values.size(), 1u);
+    EXPECT_EQ(values[0], MakeRid(123));
+    EXPECT_EQ(CollectKeysFrom(tree_->Begin(995)), (std::vector<int>{995, 996}));
+  }
+
   void VerifyDeleteMaintainsCorrectnessAndCanEmptyTree() {
     InsertKeys({0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
 

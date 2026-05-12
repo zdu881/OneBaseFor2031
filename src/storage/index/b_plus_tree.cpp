@@ -13,16 +13,16 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, BufferPoolManager *bpm, const KeyCom
                            int leaf_max_size, int internal_max_size)
     : Index(std::move(name)), bpm_(bpm), comparator_(comparator),
       leaf_max_size_(leaf_max_size), internal_max_size_(internal_max_size) {
-  if (leaf_max_size_ == 0) {
-    leaf_max_size_ = std::max(2, static_cast<int>(
-        (ONEBASE_PAGE_SIZE - sizeof(BPlusTreePage) - sizeof(page_id_t)) /
-        (sizeof(KeyType) + sizeof(ValueType))) - 1);
-  }
-  if (internal_max_size_ == 0) {
-    internal_max_size_ = std::max(2, static_cast<int>(
-        (ONEBASE_PAGE_SIZE - sizeof(BPlusTreePage)) /
-        (sizeof(KeyType) + sizeof(page_id_t))) - 1);
-  }
+  const int safe_leaf_max_size = std::max(
+      2, static_cast<int>((ONEBASE_PAGE_SIZE - sizeof(LeafPage)) /
+                          sizeof(std::pair<KeyType, ValueType>)) - 1);
+  const int safe_internal_max_size = std::max(
+      2, static_cast<int>((ONEBASE_PAGE_SIZE - sizeof(InternalPage)) /
+                          sizeof(std::pair<KeyType, page_id_t>)) - 1);
+
+  leaf_max_size_ = leaf_max_size == 0 ? safe_leaf_max_size : std::clamp(leaf_max_size, 2, safe_leaf_max_size);
+  internal_max_size_ =
+      internal_max_size == 0 ? safe_internal_max_size : std::clamp(internal_max_size, 2, safe_internal_max_size);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
