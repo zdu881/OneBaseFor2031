@@ -1,0 +1,77 @@
+AGENT USAGE
+
+This project used a coding agent as an engineering assistant for planning,
+review, debugging, and test-driven validation. The agent was not treated as a
+replacement for project ownership. Its output was reviewed, tested, and adjusted
+against the course specifications before submission.
+
+Customized PLAN Workflow
+
+We used a plan-first workflow for non-trivial changes:
+
+1. Read the relevant lab document, README requirement, or existing code path.
+2. Identify the affected lab surface: Lab 1 buffer pool, Lab 2 B+ tree/storage,
+   Lab 3 execution/catalog, or Lab 4 concurrency.
+3. State the intended fix before editing code.
+4. Keep the implementation scope small and consistent with the existing
+   project style.
+5. Define the expected verification commands before considering the change
+   complete.
+
+This workflow was especially useful when a bug crossed lab boundaries, such as
+an execution-layer index scan depending on storage-layer B+ tree behavior.
+
+Customized REVIEW Workflow
+
+We used a review-first workflow after meaningful changes:
+
+1. Review the change from the perspective of Labs 1 through 4, not only the
+   file that was edited.
+2. Prioritize correctness issues, behavioral regressions, and missing tests.
+3. Check whether a fix only satisfies a unit test or also satisfies the course
+   requirement described in docs/.
+4. Classify remaining concerns as blocking issues or residual risks.
+5. Re-run focused tests first, then run the full test suite.
+
+The review process emphasized concrete evidence: file references, failing or
+passing test commands, and specific edge cases.
+
+Testing Workflow
+
+Testing was treated as the main source of confidence. We used focused tests
+while debugging and full tests before finalizing:
+
+- ctest --test-dir build -R b_plus_tree --output-on-failure
+- ctest --test-dir build -R executor_test --output-on-failure
+- ctest --test-dir build -R lab1_eval_test --output-on-failure
+- ctest --test-dir build -R lab2_eval_test --output-on-failure
+- ctest --test-dir build -R lab3_eval_test --output-on-failure
+- ctest --test-dir build -R lab4_eval_test --output-on-failure
+- ctest --test-dir build --output-on-failure
+
+When a defect was found, we preferred adding a regression test that captured the
+failure mode before relying on a code change. This was used for B+ tree edge
+cases such as non-rightmost leaf separator updates, large unique-key insertions,
+and oversized explicit page-size parameters.
+
+View on AI and Test Data
+
+In the AI era, for medium-scale software projects, high-quality test data and
+test scenarios are often the most valuable part of the system. Implementation
+code can be generated, rewritten, or refactored quickly, but good tests encode
+the actual requirements, corner cases, invariants, and user expectations.
+
+For this project, tests served three roles:
+
+1. They described expected behavior more precisely than informal discussion.
+2. They prevented fixes in one lab from silently breaking another lab.
+3. They made agent-assisted changes auditable and reproducible.
+
+Because of this, the workflow treated tests and evaluation scenarios as durable
+project assets rather than as disposable checks.
+
+Human Oversight
+
+The agent suggested plans, inspected code, proposed fixes, and ran tests. Final
+decisions about scope, acceptance, and submission remained under human control.
+No hidden course tests or external private grading data were used.
