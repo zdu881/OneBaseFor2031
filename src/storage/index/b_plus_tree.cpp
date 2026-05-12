@@ -59,8 +59,33 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
     return page;
   };
 
+  std::function<void(page_id_t, page_id_t, const KeyType &)> update_parent_min_key;
+  update_parent_min_key = [&](page_id_t child_id, page_id_t parent_id, const KeyType &new_min_key) {
+    if (parent_id == INVALID_PAGE_ID) {
+      return;
+    }
+
+    Page *parent_page = bpm_->FetchPage(parent_id);
+    auto *parent = reinterpret_cast<InternalPage *>(parent_page->GetData());
+    int child_index = parent->ValueIndex(child_id);
+    if (child_index > 0) {
+      parent->SetKeyAt(child_index, new_min_key);
+      bpm_->UnpinPage(parent_id, true);
+      return;
+    }
+
+    page_id_t grandparent_id = parent->GetParentPageId();
+    bpm_->UnpinPage(parent_id, false);
+    update_parent_min_key(parent_id, grandparent_id, new_min_key);
+  };
+
   Page *leaf_page = find_leaf(key);
   auto *leaf = reinterpret_cast<LeafPage *>(leaf_page->GetData());
+  KeyType old_first_key{};
+  const bool had_first_key = leaf->GetSize() > 0;
+  if (had_first_key) {
+    old_first_key = leaf->KeyAt(0);
+  }
   int old_size = leaf->GetSize();
   int new_size = leaf->Insert(key, value, comparator_);
   if (new_size == old_size) {
@@ -69,6 +94,9 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
   }
 
   if (new_size <= leaf->GetMaxSize()) {
+    if (had_first_key && comparator_(leaf->KeyAt(0), old_first_key)) {
+      update_parent_min_key(leaf_page->GetPageId(), leaf->GetParentPageId(), leaf->KeyAt(0));
+    }
     bpm_->UnpinPage(leaf_page->GetPageId(), true);
     return true;
   }
@@ -86,6 +114,9 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
   leaf->MoveHalfTo(new_leaf);
   leaf->SetNextPageId(new_leaf_id);
   KeyType middle_key = new_leaf->KeyAt(0);
+  if (had_first_key && comparator_(leaf->KeyAt(0), old_first_key)) {
+    update_parent_min_key(leaf_page->GetPageId(), leaf->GetParentPageId(), leaf->KeyAt(0));
+  }
 
   std::function<bool(Page *, const KeyType &, Page *)> insert_into_parent;
   insert_into_parent = [&](Page *old_page, const KeyType &mid_key, Page *new_page) {

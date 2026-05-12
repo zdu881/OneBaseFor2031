@@ -1,7 +1,47 @@
 #include "onebase/catalog/catalog.h"
+#include <algorithm>
 #include <stdexcept>
+#include "onebase/storage/index/b_plus_tree.h"
 
 namespace onebase {
+
+IndexInfo::IndexInfo(Schema key_schema, std::string name, std::string table_name,
+                     index_oid_t oid, std::vector<uint32_t> key_attrs)
+    : key_schema_(std::move(key_schema)), name_(std::move(name)),
+      table_name_(std::move(table_name)), oid_(oid), key_attrs_(std::move(key_attrs)) {}
+
+IndexInfo::~IndexInfo() = default;
+
+auto IndexInfo::LookupInteger(int32_t key) const -> const std::vector<RID> * {
+  auto it = int_rid_map_.find(key);
+  if (it == int_rid_map_.end()) {
+    return nullptr;
+  }
+  return &it->second;
+}
+
+auto IndexInfo::InsertEntry(int32_t key, const RID &rid) -> void {
+  auto [entry, is_new_key] = int_rid_map_.try_emplace(key);
+  if (int_index_ != nullptr && is_new_key) {
+    int_index_->Insert(key, rid);
+  }
+  entry->second.push_back(rid);
+}
+
+auto IndexInfo::RemoveEntry(int32_t key, const RID &rid) -> void {
+  auto it = int_rid_map_.find(key);
+  if (it == int_rid_map_.end()) {
+    return;
+  }
+  auto &rids = it->second;
+  rids.erase(std::remove(rids.begin(), rids.end(), rid), rids.end());
+  if (rids.empty()) {
+    int_rid_map_.erase(it);
+    if (int_index_ != nullptr) {
+      int_index_->Remove(key);
+    }
+  }
+}
 
 auto Catalog::CreateTable(const std::string &table_name, const Schema &schema) -> TableInfo * {
   if (table_names_.count(table_name) > 0) {
@@ -59,6 +99,8 @@ auto Catalog::CreateIndex(const std::string &index_name, const std::string &tabl
   if (key_attrs.size() == 1 &&
       table_info->schema_.GetColumn(key_attrs.front()).GetType() == TypeId::INTEGER) {
     index_info->supports_point_lookup_ = true;
+    index_info->int_index_ = std::make_unique<BPlusTree<int, RID, std::less<int>>>(
+        index_name, bpm_, std::less<int>{});
     for (auto it = table_info->table_->Begin(); it != table_info->table_->End(); ++it) {
       Tuple tuple = *it;
       RID rid = it.GetRID();
